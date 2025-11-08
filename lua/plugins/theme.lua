@@ -6,21 +6,20 @@ return {
 	{
 		"folke/tokyonight.nvim",
 		priority = 1000,
+		config = function()
+			-- choose one: "tokyonight", "tokyonight-night", "tokyonight-storm", "tokyonight-moon"
+			vim.cmd.colorscheme("tokyonight-night")
+		end,
 	},
 	{
 		"ellisonleao/gruvbox.nvim",
 		priority = 1000,
 		config = function()
 			require("gruvbox").setup({
-				contrast = "hard", -- options: soft, medium, hard
-				italic = {
-					strings = false,
-					comments = false,
-					operators = false,
-					folds = false,
-				},
+				contrast = "hard",
+				italic = { emphasis = false, strings = false, comments = false, operators = false, folds = false },
 			})
-			vim.cmd.colorscheme("gruvbox")
+			-- vim.cmd.colorscheme("gruvbox")
 		end,
 	},
 	{
@@ -32,7 +31,7 @@ return {
 				italic_comments = false,
 				disable_nvimtree_bg = true,
 			})
-			--vim.cmd.colorscheme("vscode")
+			-- vim.cmd.colorscheme("vscode")
 		end,
 	},
 	{
@@ -43,15 +42,10 @@ return {
 				options = {
 					transparent = false,
 					hide_end_of_buffer = true,
-					styles = {
-						comments = "NONE",
-						keywords = "NONE",
-						functions = "NONE",
-						variables = "NONE",
-					},
+					styles = { comments = "NONE", keywords = "NONE", functions = "NONE", variables = "NONE" },
 				},
 			})
-			--vim.cmd.colorscheme("github_dark_default") -- default; try github_light_default too
+			-- vim.cmd.colorscheme("github_dark_default")
 		end,
 	},
 }
