@@ -29,13 +29,15 @@ local CVYUH_ROOT = vim.fs.normalize(vim.fn.expand('~/code/cvyuh-systems'))
 local LINKED_PROJECTS = {
   CVYUH_ROOT .. '/cvyuh-libs/Cargo.toml',
   CVYUH_ROOT .. '/fabrik/Cargo.toml',
-  CVYUH_ROOT .. '/scribe/Cargo.toml',
-  CVYUH_ROOT .. '/idm2/Cargo.toml',
-  CVYUH_ROOT .. '/interceptor/Cargo.toml',
-  CVYUH_ROOT .. '/platform-test/Cargo.toml',
   CVYUH_ROOT .. '/provision/Cargo.toml',
-  CVYUH_ROOT .. '/relay/Cargo.toml',
+  CVYUH_ROOT .. '/scribe/Cargo.toml',
   CVYUH_ROOT .. '/rna/Cargo.toml',
+  CVYUH_ROOT .. '/arbiter/Cargo.toml',
+  CVYUH_ROOT .. '/idm2/Cargo.toml',
+  CVYUH_ROOT .. '/am2/Cargo.toml',
+  CVYUH_ROOT .. '/interceptor/Cargo.toml',
+  CVYUH_ROOT .. '/relay/Cargo.toml',
+  CVYUH_ROOT .. '/platform-test/Cargo.toml',
 }
 
 local function under_cvyuh(path)
