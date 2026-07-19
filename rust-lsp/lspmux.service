@@ -1,0 +1,26 @@
+# systemd USER unit for the lspmux daemon. Runs as you — no root, no sudo.
+#
+# Not read from this directory. systemd only looks in ~/.config/systemd/user/,
+# so this must be copied there. See README.md step 3.
+#
+#   cp lspmux.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now lspmux
+#
+# Why bother: without it the daemon is a terminal window. Close the terminal and
+# every Rust caller silently drops back to a private ~10GB analyzer.
+
+[Unit]
+Description=lspmux language server multiplexer
+Documentation=https://codeberg.org/p2502/lspmux
+
+[Service]
+# %h = your home dir. Must be absolute: there is no PATH here.
+ExecStart=%h/.cargo/bin/lspmux server
+# Crashed daemon comes back on its own, instead of silently ending sharing.
+Restart=always
+RestartSec=2
+
+[Install]
+# What `systemctl --user enable` hooks this onto = starts at login.
+WantedBy=default.target

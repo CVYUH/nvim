@@ -26,9 +26,17 @@ local M = {}
 
 local CVYUH_ROOT = vim.fs.normalize(vim.fn.expand('~/code/cvyuh-systems'))
 
+-- Explicit list, deliberately NOT auto-discovery: the repo also contains
+-- _inspirations/ (12 vendored third-party workspaces — kanidm, sqlx, redis-rs,
+-- ldap3, …) which are read-only reference and must never be indexed. Letting
+-- rust-analyzer scan from the repo root would spin every one of them up.
+-- Mirrored in ~/.config/rust-analyzer/rust-analyzer.toml so the bound holds
+-- even when a client that sends no settings (Claude Code) initialises the
+-- shared instance first. Keep the two in sync.
 local LINKED_PROJECTS = {
   CVYUH_ROOT .. '/cvyuh-libs/Cargo.toml',
   CVYUH_ROOT .. '/fabrik/Cargo.toml',
+  CVYUH_ROOT .. '/fabrik2/Cargo.toml',
   CVYUH_ROOT .. '/provision/Cargo.toml',
   CVYUH_ROOT .. '/scribe/Cargo.toml',
   CVYUH_ROOT .. '/rna/Cargo.toml',

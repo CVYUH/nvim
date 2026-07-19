@@ -1,0 +1,46 @@
+#!/bin/bash
+# ============================================================================
+#  THIS IS NOT rust-analyzer. It is a shim that pretends to be it.
+# ============================================================================
+#
+#  WHY THE FILENAME IS "rust-analyzer" AND CANNOT BE CHANGED:
+#    nvim (lspconfig) and Claude Code both literally run the command
+#    `rust-analyzer` and take the first hit on $PATH. This file wins only
+#    because its directory sits ahead of ~/.cargo/bin. Rename it and nothing
+#    ever calls it. The name IS the mechanism.
+#
+#  WHAT IT DOES:
+#    Hands every caller to the lspmux daemon, which keeps ONE rust-analyzer
+#    and lets every editor/session share it. Without it, each nvim and each
+#    Claude Code session spawns its own analyzer at ~7-11GB. Three sessions
+#    plus nvim = ~40GB on a 46GB box = OOM.
+#
+#  SETUP + PROOF: see README.md in this directory.
+#  TO UNINSTALL:  rm this file (or drop the PATH line in ~/.zshrc).
+#                 Rust keeps working — see the fallback below.
+# ============================================================================
+
+# The REAL analyzer. Note this is the toolchain binary, NOT ~/.cargo/bin/rust-analyzer
+# (that is a symlink to rustup). --server-path MUST point here: lspmux defaults it to
+# "rust-analyzer", which would resolve back through PATH into this shim -> infinite loop.
+REAL=/home/sitaram/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rust-analyzer
+LSPMUX=/home/sitaram/.cargo/bin/lspmux
+PORT=27631 # lspmux default; overridden only by ~/.config/lspmux/config.toml
+# Absolute: this shim is found via PATH but must not depend on PATH itself.
+PINNER="$(dirname "$(readlink -f "$0")")/pin-workspace-root.py"
+
+# Fallback: if the daemon is not listening, run the real analyzer directly.
+# Rust degrades to a private analyzer instead of breaking. Nothing to notice
+# except memory going back up.
+#
+# When the daemon IS up we do not call `lspmux client` directly. lspmux keys
+# instances on the workspace root from the LSP `initialize` handshake, and
+# Claude Code announces a per-crate root (.../am2) while nvim announces the
+# repo root -- two keys, two ~10GB analyzers, no sharing. pin-workspace-root.py
+# rewrites that one field so everyone lands on the same instance, then execs
+# `lspmux client` itself. See its header, and README "How the sharing key works".
+if (exec 3<>/dev/tcp/127.0.0.1/$PORT) 2>/dev/null; then
+  exec "$PINNER" "$@"
+fi
+
+exec "$REAL" "$@"
