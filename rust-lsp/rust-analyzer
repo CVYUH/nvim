@@ -23,8 +23,14 @@
 # The REAL analyzer. Note this is the toolchain binary, NOT ~/.cargo/bin/rust-analyzer
 # (that is a symlink to rustup). --server-path MUST point here: lspmux defaults it to
 # "rust-analyzer", which would resolve back through PATH into this shim -> infinite loop.
-REAL=/home/sitaram/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rust-analyzer
-LSPMUX=/home/sitaram/.cargo/bin/lspmux
+#
+# Asked of rustup rather than hardcoded: this file is versioned and shared, so it must
+# carry nobody's $HOME and no host triple (the literal below is x86_64 linux only).
+# `rustup which` answers with the same absolute toolchain path on any machine. The
+# fallback covers a broken/absent rustup so the shim still degrades to something real.
+REAL="$(rustup which rust-analyzer 2>/dev/null)"
+[ -x "$REAL" ] || REAL="$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rust-analyzer"
+LSPMUX="$HOME/.cargo/bin/lspmux"
 PORT=27631 # lspmux default; overridden only by ~/.config/lspmux/config.toml
 # Absolute: this shim is found via PATH but must not depend on PATH itself.
 PINNER="$(dirname "$(readlink -f "$0")")/pin-workspace-root.py"

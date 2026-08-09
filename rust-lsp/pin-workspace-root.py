@@ -39,10 +39,32 @@ import threading
 import time
 from urllib.parse import unquote, urlparse
 
-REPO = "/home/sitaram/code/cvyuh-systems"
+# Derived, not hardcoded: this file is versioned and shared, so it must carry
+# nobody's $HOME and no host triple. REPO comes from this script's own location
+# (<repo>/nvim/rust-lsp/pin-workspace-root.py), so a clone under any path works
+# — the same trick the shim uses to find this file. REAL is asked of rustup;
+# the literal fallback is x86_64 linux only and exists just so a broken rustup
+# still degrades to something real.
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.realpath(__file__))))
 REPO_URI = "file://" + REPO
-LSPMUX = "/home/sitaram/.cargo/bin/lspmux"
-REAL = "/home/sitaram/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rust-analyzer"
+LSPMUX = os.path.expanduser("~/.cargo/bin/lspmux")
+
+
+def _real_analyzer():
+    try:
+        out = subprocess.run(["rustup", "which", "rust-analyzer"],
+                             capture_output=True, text=True, timeout=10)
+        path = out.stdout.strip()
+        if out.returncode == 0 and path and os.access(path, os.X_OK):
+            return path
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return os.path.expanduser(
+        "~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rust-analyzer")
+
+
+REAL = _real_analyzer()
 
 # --- rolling log -----------------------------------------------------------
 # stderr is inherited from whoever spawned the shim (nvim, or a Claude session),
