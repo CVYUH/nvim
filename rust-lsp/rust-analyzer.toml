@@ -1,0 +1,75 @@
+# User-level rust-analyzer config. CANONICAL COPY — reached via symlink:
+#
+#   ~/.config/rust-analyzer/rust-analyzer.toml -> this file
+#
+#   ln -s ~/code/cvyuh-systems/nvim/rust-lsp/rust-analyzer.toml \
+#         ~/.config/rust-analyzer/rust-analyzer.toml
+#
+# rust-analyzer only reads the ~/.config path; it will never look in here. The
+# symlink is the mechanism (README.md "Wiring pattern"). It lives in the repo
+# because it is NOT machine-local trivia — it carries the linkedProjects bound
+# that keeps _inspirations/ out of the index, and losing it costs ~30GB.
+#
+# WHY THIS FILE EXISTS: nvim and every Claude Code session share ONE analyzer
+# via lspmux (see ~/code/cvyuh-systems/nvim/rust-lsp/README.md). LSP `initialize`
+# runs once per instance, so whichever client connects FIRST defines the project
+# view for everyone. nvim sends linkedProjects; Claude Code sends nothing and
+# would fall back to auto-discovery from the repo root -- which sweeps in
+# _inspirations/, 12 vendored third-party workspaces (kanidm, sqlx, redis-rs,
+# ldap3, ...) that are read-only reference and must never be indexed.
+#
+# Declaring the crate list here makes the bound hold regardless of who wins that
+# race. Client-sent settings still take precedence, so nvim keeps working as-is.
+#
+# ⚠️ linkedProjects below is the SINGLE SOURCE for the crate list.
+# nvim/nvchad/lua/configs/lang/rust.lua READS this array at startup rather than
+# keeping its own copy — so add or remove a crate HERE and nvim follows. There
+# is nothing to keep in sync any more; do not reintroduce a second list.
+# The reader stops at the closing bracket, so keep the array one flat list of
+# quoted paths and leave the [files] table below it.
+#
+# ⚠️ KEEP THE PATHS REPO-RELATIVE. This file is versioned and shared, so it must
+# carry nobody's $HOME. rust-analyzer resolves relative linkedProjects against
+# the workspace root, which the shim pins to the repo root, so they land right;
+# rust.lua joins them onto its own CVYUH_ROOT before sending.
+#
+# Relative is also strictly more CORRECT than absolute here, which is not
+# obvious. This is USER-level config, so it applies to every Rust project you
+# open, not just this repo. Measured 2026-07-28 against an unrelated project:
+# with absolute paths rust-analyzer silently loaded THIS repo's crates and
+# ignored the project actually opened; with relative paths it loaded the real
+# project and merely logged errors for the entries that do not exist there.
+# Noisy-but-right beats quiet-but-wrong — do not "fix" the noise by going back
+# to absolute paths.
+
+linkedProjects = [
+  "cvyuh-libs/Cargo.toml",
+  "fabrik/Cargo.toml",
+  "fabrik2/Cargo.toml",
+  "provision/Cargo.toml",
+  "scribe/Cargo.toml",
+  "rna/Cargo.toml",
+  "arbiter/Cargo.toml",
+  "idm2/Cargo.toml",
+  "am2/Cargo.toml",
+  "interceptor/Cargo.toml",
+  "relay/Cargo.toml",
+  "platform-test/Cargo.toml",
+]
+
+# Keep the analyzer's `cargo check` OFF the shared build-dir lock.
+#
+# ~/code/cvyuh-systems/.cargo/config.toml collapses all 12 crates onto one
+# target/ (was ~393GB across 12 trees). One target/ means one file lock, so
+# without this the analyzer's check would block — and be blocked by — the
+# `cargo watch -x run` in the fabrik/fabrik2 dev pods, which mount the same
+# repo path. `targetDir = true` gives the analyzer target/rust-analyzer/,
+# still inside the shared tree (so registry/deps are reused) but with its own
+# lock. Do not drop this while that config.toml exists.
+[cargo]
+targetDir = true
+
+# Belt-and-braces: keep the vendored references out of file watching and
+# symbol search even if something else widens the project view.
+[files]
+excludeDirs = ["_inspirations"]

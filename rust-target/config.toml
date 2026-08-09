@@ -1,0 +1,56 @@
+# ============================================================================
+#  THIS IS THE CANONICAL cargo config. It is reached via a SYMLINK.
+# ============================================================================
+#
+#  WHERE CARGO ACTUALLY LOOKS:
+#    ~/code/cvyuh-systems/.cargo/config.toml   ->  (symlink to this file)
+#
+#    Cargo discovers config by walking UP from the crate directory. It will
+#    never look in here. The symlink at the repo root IS the mechanism — same
+#    deal as `nvim/rust-lsp/rust-analyzer` only working because its directory
+#    is ahead of ~/.cargo/bin on PATH. This file lives beside that shim so the
+#    two shared-resource hacks are found together instead of one hiding in a
+#    dotfile. Wiring, if the symlink is missing:
+#
+#      ln -s ../nvim/rust-target/config.toml ~/code/cvyuh-systems/.cargo/config.toml
+#
+#    RELATIVE, not absolute: the kind dev pods hostPath-mount the repo at the
+#    same path as the host, so a repo-relative link resolves identically inside
+#    the container. See git-ops/lib/templates/workload/_dev-template-rust.tpl.
+#
+#  WHAT IT DOES: one target/ for every crate in this repo.
+#
+#    The repo has no root Cargo.toml — the crates are independent packages, so
+#    cargo gave each its own target/. Measured 2026-07-28: cvyuh-libs 110G,
+#    am2 54G, idm2 53G, provision 40G, fabrik 31G, scribe 24G, rna 23G,
+#    arbiter 18G, fabrik2 16G, platform-test 11G, interceptor 7.5G, relay 6.1G
+#    = ~393GB. Every crate depends on cvyuh-libs, so tokio/serde/axum/cvyuh
+#    were compiled and stored TWELVE times. One shared tree holds ~11-24GB.
+#
+#    Cargo keys artifacts by package + feature hash, so crates with different
+#    feature sets (fabrik enables cvyuh/valkey, fabrik2 does not) coexist in
+#    here — each variant stored once, not once per crate tree.
+#
+#  WHY NOT A WORKSPACE Cargo.toml: it would force one Cargo.lock and unify
+#  feature resolution across all crates, and cvyuh-libs is already a workspace
+#  of its own. This gets the artifact sharing with none of that blast radius.
+#
+#  LOCK CONTENTION: concurrent builds serialise on one build-dir lock
+#  ("Blocking waiting for file lock on build directory"). Intended — cheaper
+#  than N trees thrashing the same NVMe. rust-analyzer is kept OFF that lock by
+#  `cargo.targetDir = true` in rust-analyzer.toml, so editor checks never block
+#  a dev-pod rebuild.
+#
+#  WHY target-dir IS RELATIVE: this file is versioned and shared, so it must not
+#  carry anyone's $HOME. Cargo resolves a relative target-dir against the
+#  directory holding the `.cargo/` it FOUND — i.e. the symlink at the container
+#  root, not this file's own location — so "target" lands at
+#  <container>/target for every developer, and identically inside the dev pods.
+#  Verified 2026-07-28 from the host (fabrik, am2, cvyuh-libs) and in-pod.
+#
+#  DOCS: readme/docs-internal/.../engineering/set-up/rust.md
+#  TO UNINSTALL: rm the symlink at the repo root. Every crate reverts to its
+#  own target/ and the ~393GB comes back.
+
+[build]
+target-dir = "target"

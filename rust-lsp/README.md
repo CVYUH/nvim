@@ -49,6 +49,33 @@ Note `env` is also part of the key, though `pass_environment` defaults to `[]`, 
 variable is forwarded and env is always empty. If you ever set `pass_environment`, any client
 differing in those vars gets its own analyzer.
 
+## Wiring pattern
+
+Every config this repo owns lives **in the repo** and is reached from its well-known path by
+a **symlink** — never edited in place under `~/.config`. That is what makes it versioned,
+reviewable, and present on a fresh clone. The precedent is nvim itself:
+
+```sh
+ln -s ~/code/cvyuh-systems/nvim/nvchad ~/.config/nvim
+```
+
+| canonical file (in repo) | well-known path | how |
+|---|---|---|
+| `nvim/nvchad/` | `~/.config/nvim` | symlink |
+| `nvim/rust-lsp/rust-analyzer` | *(none — found via PATH order)* | PATH |
+| `nvim/rust-lsp/rust-analyzer.toml` | `~/.config/rust-analyzer/rust-analyzer.toml` | symlink |
+| `nvim/rust-target/config.toml` | `<repo>/.cargo/config.toml` | symlink |
+| `nvim/rust-lsp/lspmux.service` | `~/.config/systemd/user/lspmux.service` | **copy — see below** |
+
+**When a symlink is impossible, copy it and say so in both places** — a header comment in the
+file itself *and* the doc — because a copy drifts and nothing will tell you. `lspmux.service`
+is the only such case here: systemd treats a symlink in its unit directory as an enablement
+link, so `systemctl --user disable` **deletes it** and the unit silently becomes `not-found`
+until the next reboot surfaces it. It loads, starts and survives `daemon-reload` first, which
+is exactly what makes it a trap. Verified 2026-07-28.
+
+After editing `lspmux.service` here, re-copy it and `systemctl --user daemon-reload`.
+
 ## Install
 
 ### 1. Install lspmux
@@ -84,13 +111,14 @@ lspmux server
 
 Or as a systemd user service, so it survives terminal close, logout and reboot.
 `lspmux.service` in this directory is ready to install — systemd only reads
-`~/.config/systemd/user/`, so it has to be copied there:
+`~/.config/systemd/user/`, so it has to be **copied** there (not symlinked — see
+"Wiring pattern"):
 
 ```sh
 cp lspmux.service ~/.config/systemd/user/
 systemctl --user daemon-reload          # systemd does not notice new files by itself
 systemctl --user enable --now lspmux    # enable = start at login; --now = also start it right now
-loginctl enable-linger sitaram          # optional: keep running after you log out
+loginctl enable-linger $USER            # optional: keep running after you log out
 ```
 
 ⚠️ **Stop any foreground `lspmux server` first** — it holds port 27631, so the service would fail to
@@ -115,6 +143,19 @@ up), you don't lose Rust.
 via PATH. It needs only python3. Uninstall it by reverting the `PINNER` line in the shim — you drop
 back to plain `lspmux client`, which works but re-splits nvim and Claude Code.
 
+### 5. Link the user-level analyzer config
+
+`rust-analyzer.toml` in this directory carries the `linkedProjects` bound (see the ⚠️ under
+"Proven", below — without it the vendored workspaces in `_inspirations/` get indexed and the
+analyzer balloons). rust-analyzer only reads it from `~/.config`, so link it there:
+
+```sh
+mkdir -p ~/.config/rust-analyzer
+ln -s ~/code/cvyuh-systems/nvim/rust-lsp/rust-analyzer.toml ~/.config/rust-analyzer/rust-analyzer.toml
+```
+
+Symlink, not a copy — this file must stay in sync with `rust.lua`, and a copy will drift.
+
 ## Verify it works
 
 ```sh
@@ -125,9 +166,9 @@ done
 ```
 
 Expect **one** analyzer, parented to `lspmux server`, with every client listed under it — and
-critically, `path:` reading `/home/sitaram/code/cvyuh-systems` for **every** instance. A `path:`
-pointing at a subdirectory (`.../am2`) means the pin is not being applied and you are about to grow
-a second analyzer. Confirm the shim is routing through the pinner:
+critically, `path:` reading your **repo root** (`.../cvyuh-systems`), the same for **every**
+instance. A `path:` pointing at a subdirectory (`.../am2`) means the pin is not being applied and
+you are about to grow a second analyzer. Confirm the shim is routing through the pinner:
 
 ```sh
 grep -c PINNER "$(which rust-analyzer)"     # -> 2
@@ -140,13 +181,13 @@ tail -f ~/.local/state/lspmux-pin/pin.log
 ```
 ```
 15:45:18 pid=570133 INIT  linkedProjects=NO
-15:45:18 pid=570133 PIN   /home/sitaram/code/cvyuh-systems/am2 -> /home/sitaram/code/cvyuh-systems
+15:45:18 pid=570133 PIN   /home/<you>/code/cvyuh-systems/am2 -> /home/<you>/code/cvyuh-systems
 ```
 
 `PIN` = root rewritten, `NOOP` = already at repo root, `PASS` = left alone (outside the repo, or no
 root announced). `INIT linkedProjects=NO` flags a client that would auto-discover if it initialized
-the instance first — harmless now that `~/.config/rust-analyzer/rust-analyzer.toml` provides the
-bound, but it tells you who is in the race.
+the instance first — harmless now that `rust-analyzer.toml` (this directory, symlinked into
+`~/.config`) provides the bound, but it tells you who is in the race.
 
 **Not stderr, deliberately.** The pinner's stderr is inherited from whoever spawned the shim (nvim,
 or a Claude session), so it never reaches the lspmux journal — the journal only carries the
@@ -189,12 +230,14 @@ that already caused one wrong "sharing is broken" conclusion.
   thing keeping them out.
   This is also why yesterday's `am2`-keyed Claude instance sat at 1.40GB while nvim's repo-root one
   hit 9.81GB — nvim's list bounded it.
-  The list now lives in **two** places and they must stay in sync:
-  `rust.lua` (12 crates, `fabrik2` added) and `~/.config/rust-analyzer/rust-analyzer.toml`. The
-  latter exists because pinning everyone to the repo root means a Claude session — which sends no
-  settings — could initialize the shared instance first and auto-discover. The user-level config
+  **`rust-analyzer.toml` in this directory is the single source for the list** (12 crates).
+  It exists because pinning everyone to the repo root means a Claude session — which sends no
+  settings — could initialize the shared instance first and auto-discover; the user-level config
   makes the bound hold whoever wins that race, and also sets `files.excludeDirs` for
-  `_inspirations`.
+  `_inspirations`. `rust.lua` **reads** that array at startup instead of keeping a copy, so add or
+  remove a crate in the TOML and nvim follows. If it cannot read the file it says so at
+  `ERROR` level and sends no `linkedProjects`, rather than failing quietly.
+  This was two hand-synced lists until 2026-07-28 — do not reintroduce the second one.
 
 ## Gotchas
 
@@ -215,6 +258,11 @@ that already caused one wrong "sharing is broken" conclusion.
   the project view.
 - **`kill <analyzer_pid>` is a legitimate stopgap** — reclaims the RAM immediately, nothing fights
   back, cost is the next re-index.
+- **`[cargo] targetDir = true` in `rust-analyzer.toml` is load-bearing — do not drop it.** The repo
+  shares ONE `target/` across all crates (`nvim/rust-target/config.toml`, symlinked to
+  `<repo>/.cargo/config.toml`), and one target dir means one build-dir lock. That setting gives the
+  analyzer `target/rust-analyzer/` so its `cargo check` never blocks — or gets blocked by — the
+  `cargo watch -x run` in the kind dev pods, which mount the same repo path.
 - **Free mitigation, unrelated to any of this:** `permissions.deny: ["LSP"]` in sessions not doing
   Rust navigation. Nothing spawns until the `LSP` tool is called, so a session that never uses it
   costs 0GB.

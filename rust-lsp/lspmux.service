@@ -1,11 +1,22 @@
 # systemd USER unit for the lspmux daemon. Runs as you — no root, no sudo.
 #
 # Not read from this directory. systemd only looks in ~/.config/systemd/user/,
-# so this must be copied there. See README.md step 3.
+# so this must be COPIED there. See README.md step 3.
 #
 #   cp lspmux.service ~/.config/systemd/user/
 #   systemctl --user daemon-reload
 #   systemctl --user enable --now lspmux
+#
+# ⚠️ COPY, NOT A SYMLINK — this is the one exception to the repo's usual
+# "canonical file lives here, well-known path symlinks to it" pattern (see
+# README.md "Wiring pattern"). A symlink here APPEARS to work: it loads, it
+# starts, it survives daemon-reload and restart. But systemd treats a symlink
+# in the unit directory as its own enablement link, so the next
+# `systemctl --user disable lspmux` DELETES it and the unit becomes
+# "not-found" while the old process keeps running — a failure that shows up
+# only at the next reboot. Verified 2026-07-28.
+#
+# Consequence: this file drifts. After editing it here, re-copy and reload.
 #
 # Why bother: without it the daemon is a terminal window. Close the terminal and
 # every Rust caller silently drops back to a private ~10GB analyzer.
