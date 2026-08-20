@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# IntelliJ
+.idea
+
+# OSX
+.DS_Store
+
+# Vim
+*.swp
+*.swo
+
+# Scratch
+z01*
