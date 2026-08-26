@@ -39,6 +39,24 @@ function M.setup()
   vim.lsp.enable("terraformls", false)
 
   vim.api.nvim_create_user_command("TFStart", function()
+    -- Refuse loudly rather than reporting success we cannot verify.
+    -- vim.lsp.enable() only flips auto-attach; with no binary on PATH the
+    -- client spawn fails out of band, so a bare "terraformls: started" notify
+    -- is indistinguishable from a working server that cannot answer.
+    --
+    -- The binary is terraform-ls (hyphenated), NOT terraformls: lspconfig
+    -- spawns `terraform-ls serve`. terraformls is only the LSP client name.
+    -- Note this stays terraform-ls even though the repo runs OpenTofu —
+    -- there is no tofu-specific server; terraform-ls speaks plain HCL.
+    if vim.fn.executable("terraform-ls") ~= 1 then
+      vim.notify(
+        "terraformls: terraform-ls not found on PATH — nothing was started.\n"
+          .. "Install it with :MasonToolsInstall (it is in ensure_installed).",
+        vim.log.levels.ERROR
+      )
+      return
+    end
+
     vim.lsp.enable("terraformls", true)
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype == "terraform" then

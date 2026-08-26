@@ -15,6 +15,23 @@ function M.setup()
   vim.lsp.enable("pyright", false)
 
   vim.api.nvim_create_user_command("PYStart", function()
+    -- Refuse loudly rather than reporting success we cannot verify.
+    -- vim.lsp.enable() only flips auto-attach; with no binary on PATH the
+    -- client spawn fails out of band, so a bare "pyright: started" notify is
+    -- indistinguishable from a working server that simply cannot answer.
+    --
+    -- The binary is pyright-langserver, NOT pyright: lspconfig spawns
+    -- `pyright-langserver --stdio`. Mason ships both, so checking the wrong
+    -- one would pass while the server still failed to start.
+    if vim.fn.executable("pyright-langserver") ~= 1 then
+      vim.notify(
+        "pyright: pyright-langserver not found on PATH — nothing was started.\n"
+          .. "Install it with :MasonToolsInstall (it is in ensure_installed).",
+        vim.log.levels.ERROR
+      )
+      return
+    end
+
     vim.lsp.enable("pyright", true)
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype == "python" then

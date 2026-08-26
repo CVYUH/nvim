@@ -17,6 +17,19 @@ function M.setup()
   vim.lsp.enable("gopls", false)
 
   vim.api.nvim_create_user_command("GOStart", function()
+    -- Refuse loudly rather than reporting success we cannot verify.
+    -- vim.lsp.enable() only flips auto-attach; with no binary on PATH the
+    -- client spawn fails out of band, so a bare "gopls: started" notify is
+    -- indistinguishable from a working server that simply cannot answer.
+    if vim.fn.executable("gopls") ~= 1 then
+      vim.notify(
+        "gopls: not found on PATH — nothing was started.\n"
+          .. "Install it with :MasonToolsInstall (it is in ensure_installed).",
+        vim.log.levels.ERROR
+      )
+      return
+    end
+
     vim.lsp.enable("gopls", true)
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype == "go" then

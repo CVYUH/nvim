@@ -50,6 +50,9 @@ return {
         "typescript-language-server", "prettier",
         "terraform-ls",
         "pyright", "ruff",
+        -- clangd only. No clang-format: postgres formats with its own
+        -- pgindent, so C is deliberately absent from configs/conform.lua.
+        "clangd",
       },
       run_on_start = true,
     },
@@ -66,6 +69,7 @@ return {
         "typescript", "javascript", "tsx",
         "hcl", "terraform",
         "python",
+        "c",
         "json", "yaml", "toml", "bash", "markdown",
       },
     },
