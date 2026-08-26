@@ -121,6 +121,33 @@ function M.setup()
   vim.lsp.enable("rust_analyzer", false)
 
   vim.api.nvim_create_user_command("RAStart", function()
+    -- Refuse loudly rather than reporting success we cannot verify.
+    -- vim.lsp.enable() only flips auto-attach; with no binary on PATH the
+    -- client spawn fails out of band, so a bare "rust-analyzer: started"
+    -- notify is indistinguishable from a working server that cannot answer.
+    --
+    -- Unlike the other languages here, rust-analyzer is NOT a Mason package
+    -- (see the ensure_installed comment in plugins/init.lua). What answers to
+    -- the name on PATH is normally the shim at nvim/rust-lsp/rust-analyzer,
+    -- which routes every caller into the shared lspmux daemon so nvim and
+    -- Claude Code sessions do not each spawn a ~7-11GB analyzer. The shim
+    -- itself falls back to `rustup which rust-analyzer`.
+    --
+    -- So this check passing does NOT prove the shim is the thing being found:
+    -- it proves only that SOMETHING named rust-analyzer resolved. That is the
+    -- right test here, because it is exactly what lspconfig will spawn.
+    if vim.fn.executable("rust-analyzer") ~= 1 then
+      vim.notify(
+        "rust-analyzer: nothing named rust-analyzer on PATH — not started.\n"
+          .. "Expected the shim at nvim/rust-lsp/rust-analyzer to be ahead of\n"
+          .. "~/.cargo/bin on PATH; check the PATH line in ~/.zshrc.\n"
+          .. "See nvim/rust-lsp/README.md. Bare toolchain fallback:\n"
+          .. "  rustup component add rust-analyzer",
+        vim.log.levels.ERROR
+      )
+      return
+    end
+
     vim.lsp.enable("rust_analyzer", true)
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype == "rust" then

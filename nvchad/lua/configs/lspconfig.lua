@@ -16,6 +16,7 @@ require("configs.lang.typescript").setup()
 require("configs.lang.python").setup()
 require("configs.lang.go").setup()
 require("configs.lang.terraform").setup()
+require("configs.lang.c").setup()
 -- require("configs.lang.java").setup()  -- future
 
 -- read :h vim.lsp.config for changing options of lsp servers

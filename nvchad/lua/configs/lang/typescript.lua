@@ -21,6 +21,28 @@ local TS_FILETYPES = {
   javascriptreact = true,
 }
 
+-- ts_ls is the one server here whose cmd is a FUNCTION, not a fixed list:
+-- lspconfig prefers <root>/node_modules/.bin/typescript-language-server and
+-- only falls back to the global one. A bare PATH check would therefore refuse
+-- to start on a project that vendors the server locally — the common case in
+-- this repo, where dashboard/, openbao/ui/ and readme/docs-* each carry their
+-- own node_modules. So check the project-local path too before giving up.
+local function server_available()
+  if vim.fn.executable("typescript-language-server") == 1 then
+    return true
+  end
+  -- pcall: vim.fs.root works off the buffer's NAME, so an unnamed scratch
+  -- buffer (or a brand-new session) has nothing to resolve against. Treat
+  -- that as "no local copy" rather than letting it raise inside the command.
+  local ok, root = pcall(vim.fs.root, 0, { "package.json", "tsconfig.json" })
+  if not ok or not root then
+    return false
+  end
+  local local_bin =
+    vim.fs.joinpath(root, "node_modules", ".bin", "typescript-language-server")
+  return vim.uv.fs_stat(local_bin) ~= nil
+end
+
 function M.setup()
   -- No per-project overrides today — ts_ls defaults are fine.
 
@@ -28,6 +50,21 @@ function M.setup()
   vim.lsp.enable("ts_ls", false)
 
   vim.api.nvim_create_user_command("TSStart", function()
+    -- Refuse loudly rather than reporting success we cannot verify.
+    -- vim.lsp.enable() only flips auto-attach; with no binary reachable the
+    -- client spawn fails out of band, so a bare "ts_ls: started" notify is
+    -- indistinguishable from a working server that simply cannot answer.
+    if not server_available() then
+      vim.notify(
+        "ts_ls: typescript-language-server not found — nothing was started.\n"
+          .. "Checked PATH and this project's node_modules/.bin.\n"
+          .. "Install it with :MasonToolsInstall (it is in ensure_installed),\n"
+          .. "or add it to the project: npm i -D typescript-language-server.",
+        vim.log.levels.ERROR
+      )
+      return
+    end
+
     vim.lsp.enable("ts_ls", true)
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_is_loaded(buf) and TS_FILETYPES[vim.bo[buf].filetype] then
