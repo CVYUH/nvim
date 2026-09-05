@@ -59,6 +59,14 @@ RA_TOML = REPO_ROOT / "nvim" / "rust-lsp" / "rust-analyzer.toml"
 # and a service that later depends on one finds it already built.
 SKIP: set[str] = set()
 
+# Features a crate's dev pod builds with, so a warmed tree matches what the pod
+# then asks for. A different feature set is a different build: cargo unifies
+# features across the graph, so warming `pgrepl` bare leaves the pod recompiling
+# `cvyuh` and everything above it — warm in name only.
+FEATURES: dict[str, str] = {
+    "pgrepl": "nats,kafka",
+}
+
 
 def linked_projects() -> list[Path]:
     """The `linkedProjects` paths from rust-analyzer.toml, repo-relative.
@@ -93,7 +101,7 @@ def linked_projects() -> list[Path]:
     return out
 
 
-def build(crate: Path, quiet: bool) -> tuple[bool, float, str]:
+def build(crate: Path, quiet: bool, release: bool) -> tuple[bool, float, str]:
     d = REPO_ROOT / crate
     if not (d / "Cargo.toml").is_file():
         return True, 0.0, "skipped (no Cargo.toml)"
@@ -112,8 +120,14 @@ def build(crate: Path, quiet: bool) -> tuple[bool, float, str]:
     tail: deque[str] = deque(maxlen=12)
     compiled = False
 
+    cmd = ["cargo", "build"]
+    if release:
+        cmd.append("--release")
+    if feats := FEATURES.get(crate.name):
+        cmd += ["--features", feats]
+
     p = subprocess.Popen(
-        ["cargo", "build"], cwd=d, text=True,
+        cmd, cwd=d, text=True,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
     )
     assert p.stdout is not None
@@ -141,9 +155,20 @@ def main() -> int:
                     help="list the crates and exit; build nothing")
     ap.add_argument("--quiet", action="store_true",
                     help="print only failures and the summary")
+    ap.add_argument("crates", nargs="*", metavar="CRATE",
+                    help="build only these linked crates, by directory name. "
+                         "Default is all of them")
+    ap.add_argument("--release", action="store_true",
+                    help="build the release profile, which is what a pod runs "
+                         "when its values carry rustDevOptimized")
     args = ap.parse_args()
 
     crates = linked_projects()
+    if args.crates:
+        wanted = set(args.crates)
+        crates = [c for c in crates if c.name in wanted]
+        if missing := wanted - {c.name for c in crates}:
+            sys.exit(f"[warm] not linked crates: {', '.join(sorted(missing))}")
 
     if args.check:
         print(f"[warm] {len(crates)} linked crates from {RA_TOML.name}:")
@@ -152,7 +177,7 @@ def main() -> int:
         return 0
 
     print(f"[warm] building {len(crates)} crates serially "
-          f"(one shared target/, one lock)", flush=True)
+          f"({'release' if args.release else 'debug'}; one shared target/, one lock)", flush=True)
 
     t0 = time.monotonic()
     failed: list[str] = []
@@ -161,7 +186,7 @@ def main() -> int:
             # Own line, not `end=" "` — cargo's streamed output lands between
             # this and the result, so a dangling prefix would be orphaned.
             print(f"[warm] {c} ...", flush=True)
-        ok, dt, note = build(c, args.quiet)
+        ok, dt, note = build(c, args.quiet, args.release)
         if ok:
             if not args.quiet:
                 print(f"[warm] {c} {note} ({dt:.0f}s)", flush=True)
