@@ -54,3 +54,45 @@
 
 [build]
 target-dir = "target"
+
+# ============================================================================
+#  THE DEV LOOP RUNS RELEASE, WITHOUT THE TWO SHIP-TIME KNOBS.
+# ============================================================================
+#
+#  Every service Cargo.toml carries `lto = true` + `codegen-units = 1`, so the
+#  binary GHA ships is maximally optimized. Those two settings buy runtime
+#  speed and cost link time, and the dev pods relink on every save: they run
+#  `cargo watch -x 'run --release'` (git-ops/lib/.../_dev-template-rust.tpl)
+#  against this same shared target/. Paying a full LTO link per keystroke-save
+#  buys nothing a dev pod needs.
+#
+#  Cargo config profiles take precedence over the manifest's, so these three
+#  lines turn those knobs off for every build that resolves THIS file — and
+#  only those. Verified: with the manifest at codegen-units=1 and this at 16,
+#  rustc receives -C codegen-units=16.
+#
+#  WHO SEES IT: the host (warm-rust.py, any local cargo) and the kind dev pods,
+#  which bind-mount the repo at the identical path and reach the same symlink.
+#
+#  WHO DOES NOT: the GHA image builds. Their Docker context is the crate
+#  directory — `COPY Cargo.toml`, `COPY src/` — so the repo-root config is
+#  never in scope and the shipped binary keeps LTO. That seam is why this lives
+#  in cargo config rather than in the dev template's env: one file, and the
+#  host and the pod cannot disagree. Env vars set only in the pod would produce
+#  a different artifact hash from warm-rust.py's, and the two would silently
+#  rebuild each other's work in the shared target/.
+
+[profile.release]
+lto = false
+codegen-units = 16
+incremental = true
+
+#  `--profile max` is the shipped profile, for when you need to measure or
+#  reproduce what production actually runs. `cargo build --profile max`, and
+#  the binary lands in target/max/ rather than target/release/, so it neither
+#  invalidates nor is invalidated by the dev loop's artifacts.
+
+[profile.max]
+inherits = "release"
+lto = true
+codegen-units = 1

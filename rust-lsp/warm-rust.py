@@ -30,8 +30,18 @@ THE CRATE LIST
     configs/lang/rust.lua reads the same array; this is the third reader and
     deliberately not a fourth copy. Add a crate there and everything follows.
 
+    WHICH PROFILE TO WARM
+    Every rust dev pod runs `cargo watch -x 'run --release'`, so --release is
+    the profile that matches what they will build. It is not the profile GHA
+    ships: nvim/rust-target/config.toml turns LTO and codegen-units=1 off for
+    every build that resolves it, which is the host and the pods and not the
+    image builds. That is what keeps a warm build and a pod build producing the
+    same artifacts in the shared target/ — warm here, and the pod links rather
+    than compiles.
+
 USAGE
     warm-rust.py                # build every linked crate
+    warm-rust.py --release      # the profile the dev pods run
     warm-rust.py --check        # report what is stale, build nothing
     warm-rust.py --quiet        # only failures and the summary
 
@@ -159,8 +169,8 @@ def main() -> int:
                     help="build only these linked crates, by directory name. "
                          "Default is all of them")
     ap.add_argument("--release", action="store_true",
-                    help="build the release profile, which is what a pod runs "
-                         "when its values carry rustDevOptimized")
+                    help="build the release profile, which is what every dev "
+                         "pod runs — cargo watch -x 'run --release'")
     args = ap.parse_args()
 
     crates = linked_projects()
