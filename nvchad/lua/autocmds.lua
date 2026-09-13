@@ -9,6 +9,10 @@ require("configs.lang.terraform").register_ft()
 -- highlighter crash on terraform heredocs, bash, ruby, php). See the module.
 require("configs.treesitter_fixes").setup()
 
+-- Markdown buffer options. Lives here rather than in lspconfig.lua because
+-- markdown has no language server, so there is nothing to hang it off there.
+require("configs.lang.markdown").setup()
+
 -- nvim-tree cursor: rest on the filename's first char when moving between
 -- entries (j/k), but leave horizontal moves (l/h) free so a long, truncated
 -- name can be scrolled into view. Replaces nvim-tree's hijack_cursor, which
