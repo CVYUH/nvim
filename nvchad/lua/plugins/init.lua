@@ -59,6 +59,18 @@ return {
   },
 
   {
+    -- In-buffer markdown rendering: headings, tables, code blocks, lists,
+    -- callouts, all drawn in the terminal. Pure Lua — no node, no browser, no
+    -- server — so it is the one view that works over ssh and on every .md.
+    -- Raw text comes back in insert mode and on the cursor's own line, so
+    -- editing always sees the source.
+    "MeanderingProgrammer/render-markdown.nvim",
+    dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
+    ft = { "markdown" },
+    opts = {},
+  },
+
+  {
     "nvim-treesitter/nvim-treesitter",
     branch = "master",
     opts = {
@@ -70,7 +82,10 @@ return {
         "hcl", "terraform",
         "python",
         "c",
-        "json", "yaml", "toml", "bash", "markdown",
+        -- markdown_inline is a separate parser for what sits *inside* a line
+        -- (links, emphasis, code spans). Without it render-markdown draws the
+        -- block structure and leaves every inline span as raw text.
+        "json", "yaml", "toml", "bash", "markdown", "markdown_inline",
       },
     },
   },
