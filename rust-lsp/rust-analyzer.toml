@@ -55,6 +55,7 @@ linkedProjects = [
   "interceptor/Cargo.toml",
   "relay/Cargo.toml",
   "pgrepl/Cargo.toml",
+  "pgdog/Cargo.toml",
   "pgwire-replication/Cargo.toml",
   "link/Cargo.toml",
   "platform/Cargo.toml",
