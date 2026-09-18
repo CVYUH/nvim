@@ -65,7 +65,8 @@ ln -s ~/code/cvyuh-systems/nvim/nvchad ~/.config/nvim
 | `nvim/rust-lsp/rust-analyzer` | *(none — found via PATH order)* | PATH |
 | `nvim/rust-lsp/rust-analyzer.toml` | `~/.config/rust-analyzer/rust-analyzer.toml` | symlink |
 | `nvim/rust-target/config.toml` | `<repo>/.cargo/config.toml` | symlink |
-| `nvim/rust-lsp/lspmux.service` | `~/.config/systemd/user/lspmux.service` | **copy — see below** |
+| `nvim/rust-lsp/lspmux.service` | `~/.config/systemd/user/lspmux.service` | **copy — see below** (linux) |
+| `nvim/rust-lsp/com.cvyuh.lspmux.plist` | `~/Library/LaunchAgents/com.cvyuh.lspmux.plist` | **copy — see below** (macOS) |
 
 **When a symlink is impossible, copy it and say so in both places** — a header comment in the
 file itself *and* the doc — because a copy drifts and nothing will tell you. `lspmux.service`
@@ -132,6 +133,31 @@ journalctl --user -u lspmux -f      # its logs, in place of watching a terminal
 ```
 
 Undo: `systemctl --user disable --now lspmux && rm ~/.config/systemd/user/lspmux.service`
+
+### 3b. Run the daemon — macOS
+
+There is no systemd. `com.cvyuh.lspmux.plist` in this directory is the launchd
+counterpart and is installed the same way — **copied**, not symlinked, because
+launchd resolves the plist at bootstrap and a later `bootout` can leave a stale
+link behind:
+
+```sh
+cp com.cvyuh.lspmux.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cvyuh.lspmux.plist
+launchctl print gui/$(id -u)/com.cvyuh.lspmux | grep state    # expect: running
+```
+
+It runs through `/bin/sh -lc` rather than naming the binary directly: launchd
+expands neither `~` nor systemd's `%h` and wants an absolute `ProgramArguments`,
+which would bake someone's `$HOME` into a versioned file. Logs go to
+`~/.local/state/lspmux/server.log` — there is no journal.
+
+Undo: `launchctl bootout gui/$(id -u)/com.cvyuh.lspmux && rm ~/Library/LaunchAgents/com.cvyuh.lspmux.plist`
+
+⚠️ **The config path differs on macOS.** lspmux reads
+`~/Library/Application Support/lspmux/config.toml`, not `~/.config/lspmux/`.
+Its absence is an INFO line at startup, not an error — the compiled-in
+defaults (`instance_timeout = 300`) still apply, exactly as on linux.
 
 **If the daemon is down nothing breaks** — the shim probes port 27631 and falls back to running the
 real analyzer directly, bypassing the pinner entirely. You silently lose sharing (memory goes back
@@ -272,3 +298,31 @@ that already caused one wrong "sharing is broken" conclusion.
 `nvchad/lua/configs/lang/rust.lua` — nvim's rust-analyzer config. Auto-attach is **off** by default
 (`:RAStart` / `:RAStop`), which predates this and is still a reasonable belt-and-braces.
 It sets no `cmd`, so it resolves through PATH and picks up the shim for free.
+
+
+## Verified on macOS (2026-09-17, M4, 32GB, nvim 0.12.3)
+
+The whole chain was re-proven on Darwin, because three pieces of it are
+linux-shaped and only one turned out to matter.
+
+**What broke:** the shim's `REAL` fallback is a hardcoded
+`stable-x86_64-unknown-linux-gnu` path. That is only reached when
+`rustup which rust-analyzer` fails — and it failed, because the rust-analyzer
+*component* was never installed on this machine. So the shim exec'd a path that
+cannot exist on arm64 Darwin and rust-analyzer was dead with or without it.
+`rustup component add rust-analyzer` is the fix; the fallback is still wrong for
+any non-linux host that also lacks the component, and is worth making portable.
+
+**What did not break:** `readlink -f` and bash `/dev/tcp` both work under the
+system bash 3.2, so the shim itself needs no change.
+
+**Proof of the pin**, same scenario as the linux run above — a client announcing
+`.../cvyuh-systems/am2` as its workspace root:
+
+```
+PIN   /Users/<you>/code/cvyuh-systems/am2 -> /Users/<you>/code/cvyuh-systems
+path: "/Users/<you>/code/cvyuh-systems"
+```
+
+One instance, keyed at the repo root, running the
+`stable-aarch64-apple-darwin` analyzer.

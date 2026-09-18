@@ -58,7 +58,6 @@ linkedProjects = [
   "pgdog/Cargo.toml",
   "pgwire-replication/Cargo.toml",
   "link/Cargo.toml",
-  "platform/Cargo.toml",
   "platform-test/Cargo.toml",
 ]
 
