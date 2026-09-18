@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd USER agent for the lspmux daemon, macOS counterpart of
+  lspmux.service. Runs as you — no root, no sudo.
+
+  Not read from this directory. launchd only looks in ~/Library/LaunchAgents,
+  so this must be COPIED there. See README.md, "Run the daemon — macOS".
+
+    cp com.cvyuh.lspmux.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cvyuh.lspmux.plist
+
+  COPY, NOT A SYMLINK — the same exception lspmux.service takes, for a
+  different reason: launchd resolves a plist symlink at bootstrap and a later
+  `bootout` can leave the link behind pointing at a unit it no longer manages.
+  Consequence: this file drifts. After editing it here, re-copy, then
+  `launchctl bootout gui/$(id -u)/com.cvyuh.lspmux` and bootstrap again.
+
+  WHY sh -lc RATHER THAN A DIRECT ExecStart: launchd expands neither `~` nor
+  systemd's `%h`, and ProgramArguments must be absolute — which would bake a
+  $HOME into a versioned, shared file. A login shell resolves it at start
+  instead, so this file carries nobody's home directory. Same rule as the
+  relative target-dir in nvim/rust-target/config.toml.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.cvyuh.lspmux</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-lc</string>
+    <string>mkdir -p "$HOME/.local/state/lspmux" &amp;&amp; exec "$HOME/.cargo/bin/lspmux" server &gt;&gt; "$HOME/.local/state/lspmux/server.log" 2&gt;&amp;1</string>
+  </array>
+
+  <!-- RunAtLoad + KeepAlive = systemd's `WantedBy=default.target` plus
+       `Restart=always`: starts at login, comes back on its own if it dies,
+       instead of silently ending sharing. -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- systemd's RestartSec=2. Also stops launchd throttling a crash loop
+       into a 10s backoff that reads as "the daemon is just gone". -->
+  <key>ThrottleInterval</key>
+  <integer>2</integer>
+</dict>
+</plist>
