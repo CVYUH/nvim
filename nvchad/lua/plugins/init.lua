@@ -12,9 +12,18 @@ return {
     -- Disable it here and instead snap-to-name only when the LINE changes,
     -- via a CursorMoved autocmd (see lua/autocmds.lua): j/k rest on the name,
     -- l/h scroll horizontally. Width stays at NvChad's default.
+    --
+    -- Gitignored files are SHOWN by default. nvim-tree hides them out of the
+    -- box, which quietly lies about a tree whose real per-machine config —
+    -- infra2/local/box.yaml, lan.yaml — is gitignored on purpose. `shift-i`
+    -- still toggles them off when the noise is unwanted; `shift-h` does the
+    -- same for dotfiles.
     "nvim-tree/nvim-tree.lua",
     opts = function(_, opts)
       opts.hijack_cursor = false
+      opts.filters = vim.tbl_extend("force", opts.filters or {}, {
+        git_ignored = false,
+      })
       return opts
     end,
   },
