@@ -16,7 +16,7 @@
 #
 #    RELATIVE, not absolute: the kind dev pods hostPath-mount the repo at the
 #    same path as the host, so a repo-relative link resolves identically inside
-#    the container. See git-ops/lib/templates/workload/_dev-template-rust.tpl.
+#    the container. See git-ops/lib/templates/workload/_dev-rust.tpl.
 #
 #  WHAT IT DOES: one target/ for every crate in this repo.
 #
@@ -62,7 +62,7 @@ target-dir = "target"
 #  Every service Cargo.toml carries `lto = true` + `codegen-units = 1`, so the
 #  binary GHA ships is maximally optimized. Those two settings buy runtime
 #  speed and cost link time, and the dev pods relink on every save: they run
-#  `cargo watch -x 'run --release'` (git-ops/lib/.../_dev-template-rust.tpl)
+#  `cargo watch -x 'run --release'` (git-ops/lib/.../_dev-rust.tpl)
 #  against this same shared target/. Paying a full LTO link per keystroke-save
 #  buys nothing a dev pod needs.
 #
