@@ -58,7 +58,7 @@ linkedProjects = [
   "pgdog/Cargo.toml",
   "pgwire-replication/Cargo.toml",
   "link/Cargo.toml",
-  "platform-test/Cargo.toml",
+  "harness/Cargo.toml",
 ]
 
 # Keep the analyzer's `cargo check` OFF the shared build-dir lock.
