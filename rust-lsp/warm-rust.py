@@ -71,10 +71,10 @@ SKIP: set[str] = set()
 
 # Features a crate's dev pod builds with, so a warmed tree matches what the pod
 # then asks for. A different feature set is a different build: cargo unifies
-# features across the graph, so warming `pgrepl` bare leaves the pod recompiling
+# features across the graph, so warming `replication` bare leaves the pod recompiling
 # `cvyuh` and everything above it — warm in name only.
 FEATURES: dict[str, str] = {
-    "pgrepl": "nats,kafka",
+    "replication": "nats,kafka",
 }
 
 
