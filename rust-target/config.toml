@@ -22,13 +22,13 @@
 #
 #    The repo has no root Cargo.toml — the crates are independent packages, so
 #    cargo gave each its own target/. Measured 2026-07-28: cvyuh-libs 110G,
-#    am2 54G, idm2 53G, provision 40G, fabrik 31G, scribe 24G, rna 23G,
-#    arbiter 18G, fabrik2 16G, platform-test 11G, interceptor 7.5G, relay 6.1G
+#    am 54G, idm 53G, provision 40G, fabrik1 31G, scribe 24G, rna 23G,
+#    arbiter 18G, fabrik 16G, platform-test 11G, interceptor 7.5G, relay 6.1G
 #    = ~393GB. Every crate depends on cvyuh-libs, so tokio/serde/axum/cvyuh
 #    were compiled and stored TWELVE times. One shared tree holds ~11-24GB.
 #
 #    Cargo keys artifacts by package + feature hash, so crates with different
-#    feature sets (fabrik enables cvyuh/valkey, fabrik2 does not) coexist in
+#    feature sets (fabrik1 enables cvyuh/valkey, fabrik does not) coexist in
 #    here — each variant stored once, not once per crate tree.
 #
 #  WHY NOT A WORKSPACE Cargo.toml: it would force one Cargo.lock and unify
@@ -46,7 +46,7 @@
 #  directory holding the `.cargo/` it FOUND — i.e. the symlink at the container
 #  root, not this file's own location — so "target" lands at
 #  <container>/target for every developer, and identically inside the dev pods.
-#  Verified 2026-07-28 from the host (fabrik, am2, cvyuh-libs) and in-pod.
+#  Verified 2026-07-28 from the host (fabrik1, am, cvyuh-libs) and in-pod.
 #
 #  DOCS: readme/docs-internal/.../engineering/set-up/rust.md
 #  TO UNINSTALL: rm the symlink at the repo root. Every crate reverts to its
