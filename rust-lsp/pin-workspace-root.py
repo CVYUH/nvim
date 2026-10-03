@@ -14,7 +14,7 @@
 #        4. the client process cwd    <- LAST RESORT ONLY
 #
 #    Claude Code's rust-analyzer plugin announces the *nearest Cargo root* it
-#    cares about (e.g. .../cvyuh-systems/am2), while nvim's rust.lua pins
+#    cares about (e.g. .../cvyuh-systems/am), while nvim's rust.lua pins
 #    root_dir to .../cvyuh-systems. Different workspace_root = different key =
 #    two full analyzers, ~10GB each, no sharing. Launch directory is NOT the
 #    cause and cd'ing cannot fix it -- cwd is only consulted when the client

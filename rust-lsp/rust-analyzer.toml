@@ -44,14 +44,14 @@
 
 linkedProjects = [
   "cvyuh-libs/Cargo.toml",
+  "fabrik1/Cargo.toml",
   "fabrik/Cargo.toml",
-  "fabrik2/Cargo.toml",
   "provision/Cargo.toml",
   "scribe/Cargo.toml",
   "rna/Cargo.toml",
   "arbiter/Cargo.toml",
-  "idm2/Cargo.toml",
-  "am2/Cargo.toml",
+  "idm/Cargo.toml",
+  "am/Cargo.toml",
   "interceptor/Cargo.toml",
   "relay/Cargo.toml",
   "replication/Cargo.toml",
@@ -66,7 +66,7 @@ linkedProjects = [
 # ~/code/cvyuh-systems/.cargo/config.toml collapses all 12 crates onto one
 # target/ (was ~393GB across 12 trees). One target/ means one file lock, so
 # without this the analyzer's check would block — and be blocked by — the
-# `cargo watch -x run` in the fabrik/fabrik2 dev pods, which mount the same
+# `cargo watch -x run` in the fabrik1/fabrik dev pods, which mount the same
 # repo path. `targetDir = true` gives the analyzer target/rust-analyzer/,
 # still inside the shared tree (so registry/deps are reused) but with its own
 # lock. Do not drop this while that config.toml exists.

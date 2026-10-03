@@ -15,7 +15,7 @@ return {
     --
     -- Gitignored files are SHOWN by default. nvim-tree hides them out of the
     -- box, which quietly lies about a tree whose real per-machine config —
-    -- infra2/local/box.yaml, lan.yaml — is gitignored on purpose. `shift-i`
+    -- infra/local/box.yaml, lan.yaml — is gitignored on purpose. `shift-i`
     -- still toggles them off when the noise is unwanted; `shift-h` does the
     -- same for dotfiles.
     "nvim-tree/nvim-tree.lua",

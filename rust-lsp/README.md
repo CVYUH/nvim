@@ -36,7 +36,7 @@ resolves `workspace_root` in this order (`select_workspace_root`, `client.rs:276
 
 **The launch directory is almost never the key.** Both nvim and Claude Code always announce a root,
 so #1 wins and cwd is never consulted. What split them here was that Claude Code's plugin announces
-the **nearest Cargo root** (`.../cvyuh-systems/am2`) while `rust.lua` pins `root_dir` to the repo
+the **nearest Cargo root** (`.../cvyuh-systems/am`) while `rust.lua` pins `root_dir` to the repo
 root — two keys, two ~10GB analyzers, silently.
 
 `pin-workspace-root.py` fixes it at the only layer that can: it rewrites `workspaceFolders`/
@@ -193,7 +193,7 @@ done
 
 Expect **one** analyzer, parented to `lspmux server`, with every client listed under it — and
 critically, `path:` reading your **repo root** (`.../cvyuh-systems`), the same for **every**
-instance. A `path:` pointing at a subdirectory (`.../am2`) means the pin is not being applied and
+instance. A `path:` pointing at a subdirectory (`.../am`) means the pin is not being applied and
 you are about to grow a second analyzer. Confirm the shim is routing through the pinner:
 
 ```sh
@@ -207,7 +207,7 @@ tail -f ~/.local/state/lspmux-pin/pin.log
 ```
 ```
 15:45:18 pid=570133 INIT  linkedProjects=NO
-15:45:18 pid=570133 PIN   /home/<you>/code/cvyuh-systems/am2 -> /home/<you>/code/cvyuh-systems
+15:45:18 pid=570133 PIN   /home/<you>/code/cvyuh-systems/am -> /home/<you>/code/cvyuh-systems
 ```
 
 `PIN` = root rewritten, `NOOP` = already at repo root, `PASS` = left alone (outside the repo, or no
@@ -230,14 +230,14 @@ that already caused one wrong "sharing is broken" conclusion.
 
 ## Proven (workspace-root pin, measured 2026-07-18, 46GB box)
 
-- **A client launched from `am2`, announcing `am2` as its workspace root — the exact Claude Code
+- **A client launched from `am`, announcing `am` as its workspace root — the exact Claude Code
   behaviour that caused the split — now lands on an instance keyed at the repo root.** Verified by
   driving a real `initialize` handshake through the shim and reading back `lspmux status`.
 - **Pin logic covers the cases that matter**: subdir root rewritten; already-repo-root left alone;
   `rootUri` with no `workspaceFolders` rewritten; path **outside** the repo untouched; client
   announcing no root left to the cwd fallback; non-`initialize` and unparseable messages forwarded
   byte-identical.
-- **The split was never about launch directory.** The shim that created the `am2` instance was
+- **The split was never about launch directory.** The shim that created the `am` instance was
   itself running with cwd = repo root.
 
 ## Proven (sharing, measured 2026-07-17, Claude Code 2.1.211, 46GB box)
@@ -254,7 +254,7 @@ that already caused one wrong "sharing is broken" conclusion.
   redis-rs, ldap3, scylla-cdc-rust, …). They are read-only reference and spin up if initiated, so
   scanning from the repo root drags every one of them into the index. The explicit list is the only
   thing keeping them out.
-  This is also why yesterday's `am2`-keyed Claude instance sat at 1.40GB while nvim's repo-root one
+  This is also why yesterday's `am`-keyed Claude instance sat at 1.40GB while nvim's repo-root one
   hit 9.81GB — nvim's list bounded it.
   **`rust-analyzer.toml` in this directory is the single source for the list** (12 crates).
   It exists because pinning everyone to the repo root means a Claude session — which sends no
@@ -268,7 +268,7 @@ that already caused one wrong "sharing is broken" conclusion.
 ## Gotchas
 
 - **Launch directory does not matter** (as of `pin-workspace-root.py`, and it was never the real
-  key — see "How the sharing key works"). `cd am2 && claude` is fine.
+  key — see "How the sharing key works"). `cd am && claude` is fine.
 - **Idle instances are reaped after 5 minutes, automatically.** lspmux ships a compiled-in
   `defaults.toml` with `instance_timeout = 300` and `gc_interval = 10`. The absence of
   `~/.config/lspmux/config.toml` does **not** mean there is no reaper — it means the defaults apply.
@@ -317,10 +317,10 @@ any non-linux host that also lacks the component, and is worth making portable.
 system bash 3.2, so the shim itself needs no change.
 
 **Proof of the pin**, same scenario as the linux run above — a client announcing
-`.../cvyuh-systems/am2` as its workspace root:
+`.../cvyuh-systems/am` as its workspace root:
 
 ```
-PIN   /Users/<you>/code/cvyuh-systems/am2 -> /Users/<you>/code/cvyuh-systems
+PIN   /Users/<you>/code/cvyuh-systems/am -> /Users/<you>/code/cvyuh-systems
 path: "/Users/<you>/code/cvyuh-systems"
 ```
 

@@ -3,7 +3,7 @@
 -- LSP server (ts_ls / typescript-language-server) + on-demand commands.
 -- Formatting (prettier) lives in conform; see configs/conform.lua.
 --
--- cvyuh-systems has many separate TS/JS projects (dashboard, openbao/ui,
+-- cvyuh-systems has many separate TS/JS projects (dashboard, dashboard1, openbao/ui,
 -- readme/docs-*, …), each with its own package.json/tsconfig.json. ts_ls
 -- detects each project root independently, so touching files across projects
 -- can spin up a ts_ls instance per root. Default-off keeps that opt-in.
@@ -25,7 +25,7 @@ local TS_FILETYPES = {
 -- lspconfig prefers <root>/node_modules/.bin/typescript-language-server and
 -- only falls back to the global one. A bare PATH check would therefore refuse
 -- to start on a project that vendors the server locally — the common case in
--- this repo, where dashboard/, openbao/ui/ and readme/docs-* each carry their
+-- this repo, where dashboard/, dashboard1/, openbao/ui/ and readme/docs-* each carry their
 -- own node_modules. So check the project-local path too before giving up.
 local function server_available()
   if vim.fn.executable("typescript-language-server") == 1 then

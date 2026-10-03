@@ -7,10 +7,10 @@ WHY THIS EXISTS
     target/. One target/ means one build-dir lock, so the pods compile strictly
     one at a time — and the order is whichever kubelet started first.
 
-    boot.py has its own order (align → bao → pg → dj → am2 → idm2 → am), and
+    boot.py has its own order (align → bao → pg → dj → am → idm → am1), and
     bao's k8s-auth step waits on the `provision` pod. Those two orderings know
-    nothing about each other. Measured 2026-08-09 on a cold target: `fabrik2`
-    took the lock, `provision` queued behind it and two fabrik replicas, and
+    nothing about each other. Measured 2026-08-09 on a cold target: `fabrik`
+    took the lock, `provision` queued behind it and two fabrik1 replicas, and
     boot failed on its 300s readiness wait while the pod it needed had not
     started compiling. Nothing was broken; the build order simply did not match
     the boot order.
@@ -60,12 +60,12 @@ WHAT IS BUILT — THE PODS' OWN DECLARATIONS
     of them and router rebuilt 357 crates, link 81, scribe 41.
 
 WHEN
-    Before the delivery layer — infra2/_common/sequence.yaml — because that layer
+    Before the delivery layer — infra/_common/sequence.yaml — because that layer
     starts ArgoCD and with it the pods. Run after it, this races the pods for the
     lock instead of finishing before they ask.
 
 USAGE
-    Run through infra2's local/warm-rust.py --site <site>, which names the node
+    Run through infra's local/warm-rust.py --site <site>, which names the node
     and the registry:
 
     warm-rust.py --node <oem>-<site>-worker2 --registry <host>              # every build
@@ -230,7 +230,7 @@ def main() -> int:
 
     if not (args.node and args.registry):
         sys.exit("[warm] --node and --registry are required to build — run it through "
-                 "infra2's local/warm-rust.py --site <site>")
+                 "infra's local/warm-rust.py --site <site>")
     mounts = node_mounts(args.node)
 
     print(f"[warm] {len(builds)} builds serially in the pods' images, "

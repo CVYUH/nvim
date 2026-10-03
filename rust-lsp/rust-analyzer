@@ -41,7 +41,7 @@ PINNER="$(dirname "$(readlink -f "$0")")/pin-workspace-root.py"
 #
 # When the daemon IS up we do not call `lspmux client` directly. lspmux keys
 # instances on the workspace root from the LSP `initialize` handshake, and
-# Claude Code announces a per-crate root (.../am2) while nvim announces the
+# Claude Code announces a per-crate root (.../am) while nvim announces the
 # repo root -- two keys, two ~10GB analyzers, no sharing. pin-workspace-root.py
 # rewrites that one field so everyone lands on the same instance, then execs
 # `lspmux client` itself. See its header, and README "How the sharing key works".
