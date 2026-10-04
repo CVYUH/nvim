@@ -21,8 +21,8 @@ WHY THIS EXISTS
 
 WHERE IT BUILDS — THE POD'S OWN IMAGE
     Each build runs in the image its pod runs (`<registry>/<path>:dev`, the path
-    from git-ops/values/images.yaml keyed by the build's directory, as
-    lib/templates/workload/_dev.tpl resolves it), as uid 1000, with the pod's
+    of the build directory's entry in what ci/local builds — git-ops's
+    _tools/ci/build.yaml joined to values/images.yaml, as app-images.py reads it), as uid 1000, with the pod's
     HOME, CARGO_HOME, RUSTUP_HOME and PATH, and with every bind mount of the
     site's app node — so it reads and writes exactly what a pod does. On Linux
     that is the host's own repo and caches; on a mac it is the VM-backed copies
@@ -93,7 +93,8 @@ import yaml
 # rather than hardcoded: the file is versioned and must carry nobody's $HOME.
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 OVERRIDE = REPO_ROOT / "git-ops" / "values" / "local" / "override.yaml"
-IMAGES = REPO_ROOT / "git-ops" / "values" / "images.yaml"
+sys.path.insert(0, str(REPO_ROOT / "git-ops" / "_tools"))
+import images  # noqa: E402
 # The node's mounts that are the node's own, not the pods' source and caches.
 NODE_ONLY = ("/lib/modules", "/var/lib/containerd", "/var")
 
@@ -110,28 +111,27 @@ def declared(node, name: str = "") -> list[tuple[str, dict]]:
     return out
 
 
-def invocations() -> list[tuple[str, tuple[str, ...], list[str]]]:
-    """`(dir, cargo args, components)` for every distinct build a pod runs."""
+def invocations() -> list[tuple[str, str, tuple[str, ...], list[str]]]:
+    """`(dir, image path, cargo args, components)` for every distinct build a pod runs."""
     if not OVERRIDE.is_file():
         sys.exit(f"[warm] missing {OVERRIDE} — the pods' builds are declared there")
-    seen: dict[tuple[str, tuple[str, ...]], list[str]] = {}
+    local = images.ci("build", "local")
+    seen: dict[tuple[str, str, tuple[str, ...]], list[str]] = {}
     for comp, opts in declared(yaml.safe_load(OVERRIDE.read_text())):
         args = ["build", "--release"]
         if opts.get("bin"):
             args += ["--bin", str(opts["bin"])]
         if opts.get("features"):
             args += ["--features", str(opts["features"])]
-        seen.setdefault((str(opts.get("dir") or comp), tuple(args)), []).append(comp)
+        d = str(opts.get("dir") or comp)
+        if d not in local:
+            sys.exit(f"[warm] {comp}: `{d}` is not in git-ops/_tools/ci/build.yaml — "
+                     f"ci/local builds no image for it")
+        path = local[d]["path"]
+        seen.setdefault((d, path, tuple(args)), []).append(comp)
     if not seen:
         sys.exit(f"[warm] no rustDevTemplate in {OVERRIDE}")
-    return [(d, a, comps) for (d, a), comps in seen.items()]
-
-
-def image_of(crate: str, registry: str) -> str:
-    """The pod's dev image for a build directory — `<registry>/<path>:dev`."""
-    rows = (yaml.safe_load(IMAGES.read_text()) or {}).get("images") or {}
-    path = (rows.get(crate) or {}).get("path") or crate
-    return f"{registry}/{path}:dev"
+    return [(d, p, a, comps) for (d, p, a), comps in seen.items()]
 
 
 def node_mounts(node: str) -> list[tuple[str, str]]:
@@ -158,11 +158,11 @@ def container(mounts: list[tuple[str, str]], image: str, workdir: Path) -> list[
     return argv + ["--entrypoint", "cargo", image]
 
 
-def build(crate: str, args: tuple[str, ...], quiet: bool, node: list[tuple[str, str]], registry: str) -> tuple[bool, float, str]:
+def build(crate: str, path: str, args: tuple[str, ...], quiet: bool, node: list[tuple[str, str]], registry: str) -> tuple[bool, float, str]:
     d = REPO_ROOT / crate
     if not (d / "Cargo.toml").is_file():
         return True, 0.0, "skipped (no Cargo.toml)"
-    image = image_of(crate, registry)
+    image = f"{registry}/{path}:dev"
     if subprocess.run(["docker", "image", "inspect", image], capture_output=True).returncode != 0:
         return False, 0.0, f"no image {image} — app-images.py builds it, and runs first"
 
@@ -224,8 +224,8 @@ def main() -> int:
 
     if args.check:
         print(f"[warm] {len(builds)} builds from {OVERRIDE.relative_to(REPO_ROOT)}:")
-        for d, a, comps in builds:
-            print(f"         {d}: cargo {' '.join(a)}   ({', '.join(comps)})")
+        for d, p, a, comps in builds:
+            print(f"         {d}: cargo {' '.join(a)}   ({', '.join(comps)}; {p}:dev)")
         return 0
 
     if not (args.node and args.registry):
@@ -238,13 +238,13 @@ def main() -> int:
 
     t0 = time.monotonic()
     failed: list[str] = []
-    for d, a, comps in builds:
+    for d, p, a, comps in builds:
         what = f"{d}: cargo {' '.join(a)}"
         if not args.quiet:
             # Own line, not `end=" "` — cargo's streamed output lands between
             # this and the result, so a dangling prefix would be orphaned.
             print(f"[warm] {what} ...", flush=True)
-        ok, dt, note = build(d, a, args.quiet, mounts, args.registry)
+        ok, dt, note = build(d, p, a, args.quiet, mounts, args.registry)
         if ok:
             if not args.quiet:
                 print(f"[warm] {what} {note} ({dt:.0f}s)", flush=True)
