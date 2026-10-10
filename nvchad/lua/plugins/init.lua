@@ -24,6 +24,17 @@ return {
       opts.filters = vim.tbl_extend("force", opts.filters or {}, {
         git_ignored = false,
       })
+      -- Showing ignored files makes every repo's status walk its ignored
+      -- trees; the Java forks take ~400ms warm, which is the default timeout,
+      -- and five timeouts switch git off for the session. Upstream reference
+      -- clones are browsed, not edited, so they get no status at all.
+      opts.git = vim.tbl_extend("force", opts.git or {}, {
+        timeout = 3000,
+        disable_for_dirs = function(path)
+          return path:find("/cvyuh%-systems/_inspirations/") ~= nil
+            or path:find("/cvyuh%-systems/wazuh$") ~= nil
+        end,
+      })
       return opts
     end,
   },
