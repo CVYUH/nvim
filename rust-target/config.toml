@@ -71,7 +71,7 @@ target-dir = "target"
 #  only those. Verified: with the manifest at codegen-units=1 and this at 16,
 #  rustc receives -C codegen-units=16.
 #
-#  WHO SEES IT: the host (warm-rust.py, any local cargo) and the kind dev pods,
+#  WHO SEES IT: the host (git-ops' rust/warm.py, any local cargo) and the kind dev pods,
 #  which bind-mount the repo at the identical path and reach the same symlink.
 #
 #  WHO DOES NOT: the GHA image builds. Their Docker context is the crate
@@ -79,7 +79,7 @@ target-dir = "target"
 #  never in scope and the shipped binary keeps LTO. That seam is why this lives
 #  in cargo config rather than in the dev template's env: one file, and the
 #  host and the pod cannot disagree. Env vars set only in the pod would produce
-#  a different artifact hash from warm-rust.py's, and the two would silently
+#  a different artifact hash from rust/warm.py's, and the two would silently
 #  rebuild each other's work in the shared target/.
 
 [profile.release]
