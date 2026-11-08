@@ -1,16 +1,13 @@
-# Python
-__pycache__/
-*.py[cod]
-
-# IntelliJ
-.idea
-
-# OSX
+# common
 .DS_Store
-
-# Vim
+.idea/
+.vscode/
 *.swp
 *.swo
+*.orig
+*.rej
+.env
+__pycache__/
 
-# Scratch
-z01*
+# repo-specific
+*.py[cod]
