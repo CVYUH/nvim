@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Cloudflare WARP on this box: ./warp.sh install | run | stop | uninstall | status
+# Cloudflare WARP on this box, Linux (apt) or macOS (Homebrew): ./warp.sh install | run | stop | uninstall | status
 # install and uninstall use sudo (run them in your own terminal); run installs first when WARP is missing.
 set -euo pipefail
+
+OS=$(uname -s)
 
 KEYRING=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
 SOURCE=/etc/apt/sources.list.d/cloudflare-client.list
 REPO=https://pkg.cloudflareclient.com
+CASK=cloudflare-warp
 
 warp() { warp-cli --accept-tos "$@"; }
 installed() { command -v warp-cli >/dev/null; }
@@ -19,20 +22,40 @@ codename() {
 }
 
 add_repo() {
+  [ "$OS" = Darwin ] && return
   curl -fsSL "${REPO}/pubkey.gpg" | sudo gpg --yes --dearmor -o "$KEYRING"
   echo "deb [signed-by=${KEYRING}] ${REPO}/ $(codename) main" | sudo tee "$SOURCE" >/dev/null
   sudo apt-get update
 }
 
 remove_repo() {
+  [ "$OS" = Darwin ] && return
   sudo rm -f "$SOURCE" "$KEYRING"
   sudo apt-get update
 }
 
-add_package() { sudo apt-get install -y cloudflare-warp; }
-remove_package() { sudo apt-get purge -y cloudflare-warp && sudo apt-get autoremove -y; }
+add_package() {
+  case "$OS" in
+    Darwin) brew install --cask "$CASK" ;;
+    *) sudo apt-get install -y cloudflare-warp ;;
+  esac
+}
 
-register() { warp registration show >/dev/null 2>&1 || warp registration new; }
+remove_package() {
+  case "$OS" in
+    Darwin) brew uninstall --cask --zap "$CASK" ;;
+    *) sudo apt-get purge -y cloudflare-warp && sudo apt-get autoremove -y ;;
+  esac
+}
+
+# On macOS the cask's launchd daemon answers warp-cli a few seconds after the install.
+daemon_up() {
+  for _ in $(seq 30); do warp status >/dev/null 2>&1 && return; sleep 1; done
+  echo "the WARP daemon is not answering" >&2
+  exit 1
+}
+
+register() { daemon_up; warp registration show >/dev/null 2>&1 || warp registration new; }
 unregister() { warp registration delete || true; }
 
 connect() {
@@ -71,7 +94,10 @@ uninstall() {
   fi
   remove_repo
   installed && { echo "warp-cli still present" >&2; exit 1; }
-  echo "WARP removed: package, registration, apt source and keyring"
+  case "$OS" in
+    Darwin) echo "WARP removed: cask, app, daemon and registration" ;;
+    *) echo "WARP removed: package, registration, apt source and keyring" ;;
+  esac
 }
 
 status() {
